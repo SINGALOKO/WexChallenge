@@ -1,0 +1,6 @@
+@WexChallenge_HostAddress = http://localhost:5047
+
+GET {{WexChallenge_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
