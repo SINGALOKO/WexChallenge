@@ -45,19 +45,31 @@ public class TreasuryExchangeRateService : IExchangeRateService
         var sixMonthsAgo = purchaseDate.AddDays(-SixMonthsInDays);
 
         // Build the API query
-        // Filter: effective_date within 6 months prior to purchase date AND matching currency
-        // Sort by effective_date descending to get the most recent rate first
-        var filter = $"currency:eq:{Uri.EscapeDataString(currency)}," +
-                     $"effective_date:lte:{purchaseDate:yyyy-MM-dd}," +
-                     $"effective_date:gte:{sixMonthsAgo:yyyy-MM-dd}";
+        // The Treasury API uses "country_currency_desc" for combined country-currency (e.g., "Brazil-Real")
+        // or "currency" for just the currency name (e.g., "Real")
+        // We'll try country_currency_desc first as it's more specific
+        var filter = $"country_currency_desc:eq:{Uri.EscapeDataString(currency)}," +
+                     $"record_date:lte:{purchaseDate:yyyy-MM-dd}," +
+                     $"record_date:gte:{sixMonthsAgo:yyyy-MM-dd}";
 
-        var url = $"{BaseUrl}?filter={filter}&sort=-effective_date&page[size]=1";
+        var url = $"{BaseUrl}?filter={filter}&sort=-record_date&page[size]=1";
 
         _logger.LogInformation("Fetching exchange rate from Treasury API: {Url}", url);
 
         try
         {
             var response = await _httpClient.GetFromJsonAsync<TreasuryApiResponse>(url, cancellationToken);
+
+            // If no results found with country_currency_desc, try with just currency field
+            if (response?.Data is null || response.Data.Count == 0)
+            {
+                _logger.LogDebug("No results with country_currency_desc, trying currency field for: {Currency}", currency);
+                filter = $"currency:eq:{Uri.EscapeDataString(currency)}," +
+                         $"record_date:lte:{purchaseDate:yyyy-MM-dd}," +
+                         $"record_date:gte:{sixMonthsAgo:yyyy-MM-dd}";
+                url = $"{BaseUrl}?filter={filter}&sort=-record_date&page[size]=1";
+                response = await _httpClient.GetFromJsonAsync<TreasuryApiResponse>(url, cancellationToken);
+            }
 
             if (response?.Data is null || response.Data.Count == 0)
             {
@@ -74,9 +86,10 @@ public class TreasuryExchangeRateService : IExchangeRateService
                 return null;
             }
 
-            if (!DateTime.TryParse(rateData.EffectiveDate, CultureInfo.InvariantCulture, DateTimeStyles.None, out var effectiveDate))
+            // Use record_date as the effective date (the date the rate was published)
+            if (!DateTime.TryParse(rateData.RecordDate, CultureInfo.InvariantCulture, DateTimeStyles.None, out var effectiveDate))
             {
-                _logger.LogError("Failed to parse effective date: {Date}", rateData.EffectiveDate);
+                _logger.LogError("Failed to parse record date: {Date}", rateData.RecordDate);
                 return null;
             }
 
@@ -89,7 +102,7 @@ public class TreasuryExchangeRateService : IExchangeRateService
             // Cache the result (historical rates don't change)
             _cache.Set(cacheKey, exchangeRate, CacheDuration);
 
-            _logger.LogInformation("Found exchange rate for {Currency}: {Rate} (effective {Date})",
+            _logger.LogInformation("Found exchange rate for {Currency}: {Rate} (record date {Date})",
                 currency, rate, effectiveDate);
 
             return exchangeRate;
@@ -111,8 +124,8 @@ public class TreasuryExchangeRateService : IExchangeRateService
             return cachedCurrencies;
         }
 
-        // Get distinct currencies from recent data
-        var url = $"{BaseUrl}?fields=currency&page[size]=1000&sort=-record_date";
+        // Get distinct country_currency_desc from recent data (this is what users should use)
+        var url = $"{BaseUrl}?fields=country_currency_desc&page[size]=1000&sort=-record_date";
 
         _logger.LogInformation("Fetching available currencies from Treasury API");
 
@@ -121,7 +134,8 @@ public class TreasuryExchangeRateService : IExchangeRateService
             var response = await _httpClient.GetFromJsonAsync<TreasuryApiResponse>(url, cancellationToken);
 
             var currencies = response?.Data
-                .Select(d => d.Currency)
+                .Select(d => d.CountryCurrencyDesc)
+                .Where(c => !string.IsNullOrEmpty(c))
                 .Distinct()
                 .OrderBy(c => c)
                 .ToList() ?? new List<string>();

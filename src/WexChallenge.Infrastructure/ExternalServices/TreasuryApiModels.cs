@@ -22,6 +22,13 @@ public class ExchangeRateData
     [JsonPropertyName("currency")]
     public string Currency { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Combined country-currency description (e.g., "Brazil-Real", "Mexico-Peso").
+    /// This is the recommended field for querying specific currencies.
+    /// </summary>
+    [JsonPropertyName("country_currency_desc")]
+    public string CountryCurrencyDesc { get; set; } = string.Empty;
+
     [JsonPropertyName("exchange_rate")]
     public string ExchangeRate { get; set; } = string.Empty;
 
