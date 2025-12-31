@@ -28,4 +28,12 @@ public interface IPurchaseRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>List of all purchases.</returns>
     Task<IReadOnlyList<Purchase>> GetAllAsync(CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Deletes a purchase by its unique identifier.
+    /// </summary>
+    /// <param name="id">The purchase ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if deleted, false if not found.</returns>
+    Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 }

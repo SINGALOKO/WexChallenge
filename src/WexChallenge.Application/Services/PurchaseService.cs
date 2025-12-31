@@ -83,6 +83,11 @@ public class PurchaseService : IPurchaseService
         return purchases.Select(MapToResponse).ToList();
     }
 
+    public async Task<bool> DeletePurchaseAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _purchaseRepository.DeleteAsync(id, cancellationToken);
+    }
+
     private static PurchaseResponse MapToResponse(Purchase purchase)
     {
         return new PurchaseResponse

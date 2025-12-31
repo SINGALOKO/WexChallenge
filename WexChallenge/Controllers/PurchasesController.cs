@@ -121,4 +121,28 @@ public class PurchasesController : ControllerBase
         var result = await _purchaseService.GetPurchaseInCurrencyAsync(id, currency, cancellationToken);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Deletes a purchase by its ID.
+    /// </summary>
+    /// <param name="id">The purchase ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>No content if deleted, 404 if not found.</returns>
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeletePurchase(Guid id, CancellationToken cancellationToken)
+    {
+        var deleted = await _purchaseService.DeletePurchaseAsync(id, cancellationToken);
+        if (!deleted)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Title = "Not Found",
+                Detail = $"Purchase with id {id} not found.",
+                Status = StatusCodes.Status404NotFound
+            });
+        }
+        return NoContent();
+    }
 }

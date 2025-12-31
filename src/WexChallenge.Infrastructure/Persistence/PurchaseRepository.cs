@@ -39,4 +39,15 @@ public class PurchaseRepository : IPurchaseRepository
             .OrderByDescending(p => p.TransactionDate)
             .ToListAsync(cancellationToken);
     }
+
+    /// <inheritdoc />
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var purchase = await _context.Purchases.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+        if (purchase == null)
+            return false;
+        _context.Purchases.Remove(purchase);
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
 }
