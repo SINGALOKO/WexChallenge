@@ -22,7 +22,7 @@ builder.Services.AddSwaggerGen(options =>
         Contact = new OpenApiContact
         {
             Name = "Fabio Silva",
-            Email = "fabio.silva@example.com"
+            Email = "daitxe@gmail.com"
         }
     });
 
